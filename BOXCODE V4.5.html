@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SGA (v4.5 - Config Modal)</title>
+
+    <style>
+        :root {
+            --cor-principal: #007bff;
+            --cor-fundo: #f4f7f6;
+            --cor-cartao: #ffffff;
+            --cor-borda: #dee2e6;
+            --cor-texto: #333;
+            --sombra: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0; padding: 20px;
+            background-color: var(--cor-fundo); color: var(--cor-texto);
+        }
+        #app {
+            max-width: 800px; margin: 0 auto; padding: 20px;
+            background-color: var(--cor-cartao); border-radius: 8px; box-shadow: var(--sombra);
+        }
+        .screen { display: none; }
+        .screen.active { display: block; }
+        
+        input[type="text"], input[type="password"], input[type="number"], input[type="file"], textarea {
+            width: calc(100% - 22px); padding: 10px;
+            margin-bottom: 10px; border: 1px solid var(--cor-borda);
+            border-radius: 4px; font-size: 16px;
+        }
+        label.camera-btn {
+            background-color: #6c757d; color: white;
+            padding: 10px 15px; border-radius: 4px;
+            cursor: pointer; display: inline-block; margin-bottom: 10px;
+        }
+        label.camera-btn:hover { opacity: 0.8; }
+        input[type="file"]#input-novo-item-foto, 
+        input[type="file"]#edit-item-foto,
+        input[type="file"]#input-import { display: none; }
+
+        button {
+            background-color: var(--cor-principal); color: white;
+            padding: 12px 20px; border: none;
+            border-radius: 4px; cursor: pointer;
+            font-size: 16px; margin-right: 5px;
+        }
+        button:hover { opacity: 0.8; }
+        button.secundario { background-color: #6c757d; }
+        button.perigo { background-color: #dc3545; }
+        button.editar { background-color: #ffc107; }
+        button.acao { background-color: #28a745; }
+        
+        h1, h2, h3 { border-bottom: 2px solid var(--cor-principal); padding-bottom: 10px; }
+        ul { list-style: none; padding: 0; }
+        
+        li.lista-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px; background-color: #fdfdfd;
+            border: 1px solid var(--cor-borda); border-radius: 4px;
+            margin-bottom: 8px; cursor: pointer;
+        }
+        li.lista-item:hover { background-color: #f0f0f0; }
+        
+        li.item-detalhe {
+            border: 1px solid var(--cor-borda); border-radius: 4px;
+            margin-bottom: 10px; padding: 10px; background: #fdfdfd;
+        }
+        .item-status {
+            font-weight: bold; padding: 5px 8px;
+            border-radius: 4px; cursor: pointer;
+            display: inline-block; margin-top: 5px;
+        }
+        .item-status.na-caixa { background-color: #d4edda; color: #155724; }
+        .item-status.retirado { background-color: #f8d7da; color: #721c24; }
+        
+        #qr-code-container { text-align: center; margin: 20px 0; padding: 10px; border: 1px dashed var(--cor-borda); }
+        
+        /* ATUALIZAÇÃO 01: Aplicando estilo de modal à tela de config */
+        #modal-edicao, #modal-config {
+            display: none; position: fixed; z-index: 100;
+            left: 0; top: 0; width: 100%; height: 100%;
+            overflow: auto; background-color: rgba(0,0,0,0.4);
+        }
+        .modal-conteudo {
+            background-color: #fefefe; margin: 10% auto;
+            padding: 20px; border: 1px solid #888;
+            width: 80%; max-width: 500px; border-radius: 8px;
+        }
+        
+        #area-busca {
+            background: #f9f9f9; padding: 15px;
+            border: 1px solid var(--cor-borda); border-radius: 4px;
+        }
+        #lista-busca-resultados li {
+            background: #fff; padding: 10px;
+            border: 1px solid var(--cor-borda); border-radius: 4px;
+            margin-bottom: 5px; cursor: pointer;
+        }
+        #lista-busca-resultados li:hover { background-color: #f0f0f0; }
+
+        .input-grupo { display: flex; gap: 10px; }
+        .input-grupo > :first-child { flex-grow: 1; }
+        .input-grupo > :last-child { width: 100px; }
+        .grupo-botoes { margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--cor-borda); }
+
+        .login-box { max-width: 400px; margin: 40px auto; padding: 20px; }
+        .header-app { display: flex; justify-content: space-between; align-items: center; }
+        
+        #btn-config {
+            padding: 8px 12px;
+            font-size: 18px;
+            margin-left: 10px;
+        }
+
+        @media print {
+            body { padding: 0; } #app { box-shadow: none; padding: 0; }
+            .no-print { display: none; }
+            #qr-code-para-imprimir { display: block !important; page-break-before: always; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app">
+        <div id="screen-login" class="screen active login-box">
+            <h2 style="text-align: center;">Gestão de Caixas</h2>
+            <hr>
+            <p id="login-erro" style="color: red;"></p>
+            <label>Usuário:</label>
+            <input type="text" id="login-user">
+            <label>Senha:</label>
+            <input type="password" id="login-pass">
+            <button onclick="app.login()">Entrar</button>
+        </div>
+
+        <div id="screen-categorias" class="screen">
+            <div class="header-app no-print">
+                <h1 id="titulo-boas-vindas">Sistema de Gestão</h1>
+                <div>
+                    <button onclick="app.logout()" class="secundario" title="Sair">Sair</button>
+                    <button onclick="app.abrirModalConfig()" id="btn-config" class="secundario" title="Configurações">⚙️</button>
+                </div>
+            </div>
+            <div id="area-busca" class="no-print">
+                <h2>Buscar Item</h2>
+                <input type="text" id="input-busca" placeholder="Digite o nome do item para buscar...">
+                <button onclick="app.buscarItem()">Buscar</button>
+                <button onclick="app.limparBusca()" class="secundario">Limpar</button>
+                <ul id="lista-busca-resultados"></ul>
+            </div>
+            <div id="area-categorias">
+                <h2>Minhas Categorias</h2>
+                <ul id="lista-categorias" class="no-print"></ul>
+                <div class="no-print">
+                    <hr>
+                    <input type="text" id="input-nova-categoria" placeholder="Nome da nova categoria (Ex: Papelaria)">
+                    <button onclick="app.addCategoria()">Criar Categoria</button>
+                </div>
+            </div>
+            <div class="grupo-botoes no-print">
+                <h3>Backup e Restauração</h3>
+                <p>Salve seus dados ou restaure um backup anterior.</p>
+                <button onclick="app.exportarBackup()" class="acao">Exportar Backup (.json)</button>
+                <button onclick="app.iniciarImportacao()" class="perigo">Importar Backup</button>
+                <input type="file" id="input-import" onchange="app.importarBackup(event)" accept=".json">
+            </div>
+        </div>
+
+        <div id="screen-caixas" class="screen">
+            <button onclick="app.irParaCategorias()" class="secundario no-print">&larr; Voltar</button>
+            <h1 id="titulo-categoria"></h1>
+            <ul id="lista-caixas" class="no-print"></ul>
+            <div class="no-print">
+                <hr>
+                <input type="text" id="input-nova-caixa" placeholder="Nome da nova caixa">
+                <button onclick="app.addCaixa()">Criar Caixa</button>
+            </div>
+        </div>
+
+        <div id="screen-itens" class="screen">
+            <button onclick="app.irParaCaixas()" class="secundario no-print">&larr; Voltar</button>
+            <h1 id="titulo-caixa"></h1>
+            <div class="no-print">
+                <h3>Anotação da Caixa:</h3>
+                <textarea id="anotacao-caixa" rows="3" placeholder="Observações..."></textarea>
+                <button onclick="app.salvarAnotacaoCaixa()">Salvar Anotação</button>
+            </div>
+            <div id="qr-code-container" class="no-print">
+                <h3>QR Code (Precisa de Internet)</h3>
+                <div id="qr-code-img"></div>
+                <button onclick="window.print()">Imprimir QR Code</button>
+            </div>
+            <h2>Itens na Caixa</h2>
+            <ul id="lista-itens" class="no-print"></ul>
+            <div class="no-print">
+                <hr>
+                <h3>Adicionar Novo Item</h3>
+                <div class="input-grupo">
+                    <input type="text" id="input-novo-item-nome" placeholder="Nome do item (Ex: Caneta Azul BIC)">
+                    <input type="number" id="input-novo-item-quantidade" value="1" min="1" placeholder="Qtd.">
+                </div>
+                <input type="text" id="input-novo-item-anotacao" placeholder="Anotação do item (Opcional)">
+                <label for="input-novo-item-foto" class="camera-btn">📸 Tirar/Escolher Foto</label>
+                <input type="file" id="input-novo-item-foto" accept="image/*" capture="environment">
+                <span id="foto-nova-nome">Nenhuma foto selecionada.</span>
+                <br><br>
+                <button onclick="app.addItem()">Adicionar Item</button>
+            </div>
+        </div>
+
+        <div id="qr-code-para-imprimir" style="display: none;">
+            <h1 id="print-titulo-caixa"></h1>
+            <img id="print-qr-code-img" src="">
+        </div>
+
+        <div id="modal-edicao" class="no-print">
+            <div class="modal-conteudo">
+                <h2>Editar Item</h2>
+                <input type="hidden" id="edit-item-index">
+                
+                <div class="input-grupo">
+                    <input type="text" id="edit-item-nome" placeholder="Nome do Item">
+                    <input type="number" id="edit-item-quantidade" value="1" min="1" placeholder="Qtd.">
+                </div>
+                <input type="text" id="edit-item-anotacao" placeholder="Anotação">
+                
+                <label for="edit-item-foto" class="camera-btn">📸 Trocar Foto (Opcional)</label>
+                <input type="file" id="edit-item-foto" accept="image/*" capture="environment">
+                <span id="foto-edit-nome"></span>
+                
+                <p><strong>Foto Atual:</strong></p>
+                <img id="edit-foto-atual" src="" style="max-width: 100px; height: auto; display: none;">
+                <p id="edit-sem-foto" style="display: none;">Nenhuma foto cadastrada.</p>
+
+                <hr>
+                <button onclick="app.salvarEdicaoItem()">Salvar Alterações</button>
+                <button onclick="app.fecharModalEdicao()" class="secundario">Cancelar</button>
+            </div>
+        </div>
+        
+        <div id="modal-config" class="no-print">
+            <div class="modal-conteudo">
+                <h2>Configurações</h2>
+                <p>Você foi autenticado. Insira os novos dados.</p>
+                
+                <label>Novo Nome de Usuário:</label>
+                <input type="text" id="input-edit-user">
+                
+                <label>Nova Senha:</label>
+                <input type="password" id="input-edit-pass">
+                
+                <hr>
+                <button onclick="app.alterarLogin()" class="acao">Salvar Alterações</button>
+                <button onclick="app.fecharModalConfig()" class="secundario">Cancelar</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const app = {
+            db: {
+                login: { user: 'Fricar', pass: '26011995' },
+                categorias: []
+            },
+            estadoAtual: { 
+                categoriaIndex: null, caixaIndex: null, 
+                itemSendoEditado: null, usuarioLogado: null 
+            },
+            config: {
+                MAX_FOTO_LARGURA: 300,
+                DB_KEY: 'sgaDB-v4.3' // Mantemos a chave v4.3 para compatibilidade
+            },
+
+            init() {
+                const dadosSalvos = localStorage.getItem(app.config.DB_KEY);
+                
+                if (dadosSalvos) {
+                    app.db = JSON.parse(dadosSalvos);
+                } else {
+                    const dadosAntigosV3 = localStorage.getItem('sgaDB-v3');
+                    if (dadosAntigosV3) {
+                        try {
+                            const dbAntiga = JSON.parse(dadosAntigosV3);
+                            if(dbAntiga.categorias) {
+                                app.db.categorias = dbAntiga.categorias; 
+                            }
+                            app.salvarDB(); 
+                            localStorage.removeItem('sgaDB-v3');
+                            alert('Seus dados de caixas e itens foram migrados!');
+                        } catch (e) { console.error('Falha ao migrar dados da v3', e); }
+                    }
+                }
+                
+                app.irPara('screen-login');
+                console.log(`App v4.5 (Auth Modal) iniciado.`, app.db);
+
+                document.getElementById('input-novo-item-foto').onchange = (e) => {
+                    document.getElementById('foto-nova-nome').innerText = e.target.files[0] ? e.target.files[0].name : 'Nenhuma foto.';
+                };
+                document.getElementById('edit-item-foto').onchange = (e) => {
+                    document.getElementById('foto-edit-nome').innerText = e.target.files[0] ? `Nova: ${e.target.files[0].name}` : '';
+                };
+            },
+
+            salvarDB() {
+                try {
+                    localStorage.setItem(app.config.DB_KEY, JSON.stringify(app.db));
+                    console.log('Banco de dados salvo!');
+                } catch (e) {
+                    alert('ERRO: Não foi possível salvar! O armazenamento pode estar cheio.');
+                }
+            },
+
+            // --- NAVEGAÇÃO ---
+            irPara(telaId) {
+                document.querySelectorAll('.screen').forEach(tela => tela.classList.remove('active'));
+                document.getElementById(telaId).classList.add('active');
+            },
+            irParaCategorias() { 
+                app.irPara('screen-categorias'); 
+                document.getElementById('titulo-boas-vindas').innerText = `Olá, ${app.estadoAtual.usuarioLogado}`;
+                app.renderizarCategorias();
+            },
+            irParaCaixas(catIndex) { app.estadoAtual.categoriaIndex = catIndex; app.irPara('screen-caixas'); app.renderizarCaixas(); },
+            irParaItens(caixaIndex) { app.estadoAtual.caixaIndex = caixaIndex; app.irPara('screen-itens'); app.renderizarItens(); },
+            
+            // ATUALIZAÇÃO 01/02: Novo fluxo de configuração
+            abrirModalConfig() {
+                const senha = prompt("Para acessar as configurações, digite sua senha atual:", "");
+                if (senha === null) return; // Usuário cancelou
+
+                if (senha === app.db.login.pass) {
+                    // Senha correta, preenche os campos e abre o modal
+                    document.getElementById('input-edit-user').value = app.db.login.user;
+                    document.getElementById('input-edit-pass').value = app.db.login.pass;
+                    document.getElementById('modal-config').style.display = 'block';
+                } else {
+                    alert('Senha incorreta.');
+                }
+            },
+            
+            // ATUALIZAÇÃO 01/02: Nova função para fechar o modal
+            fecharModalConfig() {
+                document.getElementById('modal-config').style.display = 'none';
+            },
+
+            // --- LÓGICA DE LOGIN ---
+            login() {
+                const user = document.getElementById('login-user').value;
+                const pass = document.getElementById('login-pass').value;
+                const erroEl = document.getElementById('login-erro');
+
+                if (user === app.db.login.user && pass === app.db.login.pass) {
+                    app.estadoAtual.usuarioLogado = app.db.login.user;
+                    erroEl.innerText = '';
+                    document.getElementById('login-user').value = '';
+                    document.getElementById('login-pass').value = '';
+                    app.irParaCategorias();
+                } else {
+                    erroEl.innerText = 'Usuário ou senha inválidos.';
+                }
+            },
+            logout() {
+                app.estadoAtual.usuarioLogado = null;
+                app.irPara('screen-login');
+            },
+            
+            // ATUALIZAÇÃO 01/02: Alterar Login
+            alterarLogin() {
+                const novoUser = document.getElementById('input-edit-user').value.trim();
+                const novoPass = document.getElementById('input-edit-pass').value.trim();
+
+                if (novoUser.length < 3 || novoPass.length < 3) {
+                    alert('O novo usuário e a nova senha precisam ter pelo menos 3 caracteres.');
+                    return;
+                }
+                
+                app.db.login.user = novoUser;
+                app.db.login.pass = novoPass;
+                app.estadoAtual.usuarioLogado = novoUser;
+                
+                app.salvarDB();
+                
+                alert('Login atualizado com sucesso!');
+                app.fecharModalConfig(); // Fecha o modal
+                app.irParaCategorias(); // Recarrega o "Olá, [novoUser]"
+            },
+
+            // --- RENDERIZAÇÃO (Ordem Alfabética) ---
+            renderizarCategorias() {
+                const lista = document.getElementById('lista-categorias');
+                lista.innerHTML = '';
+                if (app.db.categorias.length === 0) { lista.innerHTML = '<p>Nenhuma categoria criada.</p>'; return; }
+                
+                app.db.categorias
+                    .sort((a, b) => a.nome.localeCompare(b.nome))
+                    .forEach((cat) => {
+                        const realIndex = app.db.categorias.findIndex(c => c === cat);
+                        const li = document.createElement('li');
+                        li.className = 'lista-item';
+                        li.innerHTML = `<span>${cat.nome} (${cat.caixas.length} caixas)</span><div><button class="perigo" onclick="event.stopPropagation(); app.removerCategoria(${realIndex})">X</button></div>`;
+                        li.onclick = () => app.irParaCaixas(realIndex);
+                        lista.appendChild(li);
+                    });
+            },
+            renderizarCaixas() {
+                const cat = app.db.categorias[app.estadoAtual.categoriaIndex];
+                if (!cat) { app.irParaCategorias(); return; }
+                document.getElementById('titulo-categoria').innerText = `Categoria: ${cat.nome}`;
+                const lista = document.getElementById('lista-caixas');
+                lista.innerHTML = '';
+                if (cat.caixas.length === 0) { lista.innerHTML = '<p>Nenhuma caixa criada.</p>'; return; }
+
+                cat.caixas
+                    .sort((a, b) => a.nome.localeCompare(b.nome))
+                    .forEach((caixa) => {
+                        const realIndex = cat.caixas.findIndex(c => c === caixa);
+                        const li = document.createElement('li');
+                        li.className = 'lista-item';
+                        li.innerHTML = `<span>${caixa.nome} (${caixa.itens.length} itens)</span><div><button class="perigo" onclick="event.stopPropagation(); app.removerCaixa(${realIndex})">X</button></div>`;
+                        li.onclick = () => app.irParaItens(realIndex);
+                        lista.appendChild(li);
+                    });
+            },
+            renderizarItens() {
+                const cat = app.db.categorias[app.estadoAtual.categoriaIndex];
+                const caixa = cat.caixas[app.estadoAtual.caixaIndex];
+                if (!caixa) { app.irParaCaixas(app.estadoAtual.categoriaIndex); return; }
+
+                document.getElementById('titulo-caixa').innerText = `Caixa: ${caixa.nome}`;
+                document.getElementById('anotacao-caixa').value = caixa.anotacao || '';
+                app.gerarQRCode(cat.nome, caixa.nome);
+                const lista = document.getElementById('lista-itens');
+                lista.innerHTML = '';
+                if (caixa.itens.length === 0) { lista.innerHTML = '<p>Nenhum item adicionado.</p>'; return; }
+
+                caixa.itens
+                    .sort((a, b) => a.nome.localeCompare(b.nome))
+                    .forEach((item, index) => {
+                        const realIndex = caixa.itens.findIndex(i => i === item);
+                        const li = document.createElement('li');
+                        li.className = 'item-detalhe';
+                        
+                        const statusClass = item.status === 'Na Caixa' ? 'na-caixa' : 'retirado';
+                        let statusTexto = `<strong>Status:</strong> ${item.status}`;
+                        if(item.status === 'Retirado') { statusTexto += ` (por: ${item.retiradoPor || '?'})`; }
+                        
+                        li.innerHTML = `
+                            <h4>${index + 1}. ${item.nome} (x${item.quantidade || 1})</h4>
+                            ${item.foto ? `<img src="${item.foto}" alt="${item.nome}" style="max-width: 150px; border-radius: 4px;">` : ''}
+                            <p><strong>Anotação:</strong> ${item.anotacao || 'N/A'}</p>
+                            <div><span class="item-status ${statusClass}" onclick="app.alternarStatusItem(${realIndex})">${statusTexto}</span></div>
+                            <hr style="border: 0; border-top: 1px solid #eee;">
+                            <button class="editar" onclick="app.abrirModalEdicao(${realIndex})">Editar</button>
+                            <button class="perigo" onclick="app.removerItem(${realIndex})">Remover</button>
+                        `;
+                        lista.appendChild(li);
+                    });
+            },
+
+            // --- AÇÕES DE ADICIONAR ---
+            addCategoria() {
+                const input = document.getElementById('input-nova-categoria');
+                if (input.value.trim()) {
+                    app.db.categorias.push({ nome: input.value.trim(), caixas: [] });
+                    app.salvarDB(); app.renderizarCategorias(); input.value = '';
+                }
+            },
+            addCaixa() {
+                const input = document.getElementById('input-nova-caixa');
+                if (input.value.trim()) {
+                    app.db.categorias[app.estadoAtual.categoriaIndex].caixas.push({ nome: input.value.trim(), anotacao: '', itens: [] });
+                    app.salvarDB(); app.renderizarCaixas(); input.value = '';
+                }
+            },
+            async addItem() {
+                const nomeInput = document.getElementById('input-novo-item-nome');
+                const fotoInput = document.getElementById('input-novo-item-foto');
+                const anotacaoInput = document.getElementById('input-novo-item-anotacao');
+                const qtdInput = document.getElementById('input-novo-item-quantidade');
+                if (!nomeInput.value.trim()) { alert('O nome é obrigatório.'); return; }
+                
+                let fotoComprimida = null;
+                if (fotoInput.files[0]) {
+                    try { fotoComprimida = await app.processarImagem(fotoInput.files[0]); } 
+                    catch (e) { alert('Erro ao processar imagem.'); return; }
+                }
+
+                app.db.categorias[app.estadoAtual.categoriaIndex].caixas[app.estadoAtual.caixaIndex].itens.push({
+                    nome: nomeInput.value.trim(), foto: fotoComprimida,
+                    anotacao: anotacaoInput.value.trim(),
+                    quantidade: parseInt(qtdInput.value) || 1,
+                    status: 'Na Caixa', retiradoPor: ''
+                });
+                app.salvarDB(); app.renderizarItens();
+                nomeInput.value = ''; fotoInput.value = ''; anotacaoInput.value = ''; qtdInput.value = '1';
+                document.getElementById('foto-nova-nome').innerText = 'Nenhuma foto.';
+            },
+
+            // --- AÇÕES DE REMOVER ---
+            removerCategoria(index) {
+                if (confirm(`Tem certeza que quer apagar a categoria "${app.db.categorias[index].nome}"?`)) {
+                    app.db.categorias.splice(index, 1);
+                    app.salvarDB(); app.renderizarCategorias();
+                }
+            },
+            removerCaixa(index) {
+                const cat = app.db.categorias[app.estadoAtual.categoriaIndex];
+                if (confirm(`Tem certeza que quer apagar a caixa "${cat.caixas[index].nome}"?`)) {
+                    cat.caixas.splice(index, 1);
+                    app.salvarDB(); app.renderizarCaixas();
+                }
+            },
+            removerItem(index) {
+                const caixa = app.db.categorias[app.estadoAtual.categoriaIndex].caixas[app.estadoAtual.caixaIndex];
+                if (confirm(`Tem certeza que quer apagar o item "${caixa.itens[index].nome}"?`)) {
+                    caixa.itens.splice(index, 1);
+                    app.salvarDB(); app.renderizarItens();
+                }
+            },
+
+            // --- AÇÕES DE ATUALIZAR ---
+            salvarAnotacaoCaixa() {
+                app.db.categorias[app.estadoAtual.categoriaIndex].caixas[app.estadoAtual.caixaIndex].anotacao = document.getElementById('anotacao-caixa').value;
+                app.salvarDB(); alert('Anotação salva!');
+            },
+            alternarStatusItem(itemIndex) {
+                const item = app.db.categorias[app.estadoAtual.categoriaIndex].caixas[app.estadoAtual.caixaIndex].itens[itemIndex];
+                if (item.status === 'Na Caixa') {
+                    const pessoa = prompt('Quem está retirando este item?');
+                    if (pessoa !== null) {
+                        item.status = 'Retirado';
+                        item.retiradoPor = pessoa.trim() || 'Desconhecido';
+                    }
+                } else {
+                    item.status = 'Na Caixa';
+                    item.retiradoPor = '';
+                }
+                app.salvarDB();
+                app.renderizarItens();
+            },
+
+            // --- FUNÇÕES DE EDIÇÃO ---
+            abrirModalEdicao(itemIndex) {
+                const item = app.db.categorias[app.estadoAtual.categoriaIndex].caixas[app.estadoAtual.caixaIndex].itens[itemIndex];
+                app.estadoAtual.itemSendoEditado = itemIndex;
+                document.getElementById('edit-item-nome').value = item.nome;
+                document.getElementById('edit-item-anotacao').value = item.anotacao || '';
+                document.getElementById('edit-item-quantidade').value = item.quantidade || 1;
+                const imgAtual = document.getElementById('edit-foto-atual');
+                const pSemFoto = document.getElementById('edit-sem-foto');
+                if (item.foto) {
+                    imgAtual.src = item.foto; imgAtual.style.display = 'block'; pSemFoto.style.display = 'none';
+                } else {
+                    imgAtual.style.display = 'none'; pSemFoto.style.display = 'block';
+                }
+                document.getElementById('edit-item-foto').value = '';
+                document.getElementById('foto-edit-nome').innerText = '';
+                document.getElementById('modal-edicao').style.display = 'block';
+            },
+            fecharModalEdicao() {
+                document.getElementById('modal-edicao').style.display = 'none';
+                app.estadoAtual.itemSendoEditado = null;
+            },
+            async salvarEdicaoItem() {
+                const index = app.estadoAtual.itemSendoEditado;
+                const item = app.db.categorias[app.estadoAtual.categoriaIndex].caixas[app.estadoAtual.caixaIndex].itens[index];
+                const fotoInput = document.getElementById('edit-item-foto');
+                item.quantidade = parseInt(document.getElementById('edit-item-quantidade').value) || 1;
+                item.nome = document.getElementById('edit-item-nome').value.trim();
+                item.anotacao = document.getElementById('edit-item-anotacao').value.trim();
+                if (fotoInput.files[0]) {
+                    try { item.foto = await app.processarImagem(fotoInput.files[0]); }
+                    catch (e) { alert('Erro ao processar nova imagem.'); return; }
+                }
+                app.salvarDB();
+                app.renderizarItens();
+                app.fecharModalEdicao();
+            },
+
+            // --- FUNÇÃO DE BUSCA ---
+            buscarItem() {
+                const termo = document.getElementById('input-busca').value.trim().toLowerCase();
+                const listaResultados = document.getElementById('lista-busca-resultados');
+                listaResultados.innerHTML = '';
+                if (termo.length < 2) { listaResultados.innerHTML = '<p>Digite pelo menos 2 letras.</p>'; return; }
+
+                document.getElementById('area-categorias').style.display = 'none';
+                let resultados = [];
+                app.db.categorias.forEach((cat, catIndex) => {
+                    cat.caixas.forEach((caixa, caixaIndex) => {
+                        caixa.itens.forEach(item => {
+                            if (item.nome.toLowerCase().includes(termo)) {
+                                resultados.push({ 
+                                    itemNome: item.nome, caixaNome: caixa.nome, catNome: cat.nome,
+                                    catIndex: catIndex, caixaIndex: caixaIndex
+                                });
+                            }
+                        });
+                    });
+                });
+                if (resultados.length === 0) {
+                    listaResultados.innerHTML = '<p>Nenhum item encontrado.</p>';
+                } else {
+                    resultados.forEach(res => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `<strong>${res.itemNome}</strong> (Caixa: ${res.caixaNome} | Categoria: ${res.catNome})`;
+                        li.onclick = () => app.irParaCaixaDoItem(res.catIndex, res.caixaIndex);
+                        listaResultados.appendChild(li);
+                    });
+                }
+            },
+            limparBusca() {
+                document.getElementById('input-busca').value = '';
+                document.getElementById('lista-busca-resultados').innerHTML = '';
+                document.getElementById('area-categorias').style.display = 'block';
+            },
+            irParaCaixaDoItem(catIndex, caixaIndex) {
+                app.estadoAtual.categoriaIndex = catIndex;
+                app.irParaItens(caixaIndex);
+            },
+
+            // --- GERAÇÃO DE QR CODE ---
+            gerarQRCode(nomeCategoria, nomeCaixa) {
+                const caixa = app.db.categorias[app.estadoAtual.categoriaIndex].caixas[app.estadoAtual.caixaIndex];
+                const listaItens = caixa.itens
+                    .sort((a, b) => a.nome.localeCompare(b.nome))
+                    .map((item, i) => `${i + 1}. ${item.nome} (x${item.quantidade})`)
+                    .join('\n');
+                
+                const textoParaQR = `Caixa: ${nomeCaixa}\nCategoria: ${nomeCategoria}\n\nITENS:\n${listaItens.length > 0 ? listaItens : 'Caixa vazia.'}`;
+                const textoCurto = textoParaQR.length > 500 ? textoParaQR.substring(0, 500) + '... (Lista longa)' : textoParaQR;
+
+                const urlAPI = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(textoCurto)}`;
+                document.getElementById('qr-code-img').innerHTML = `<img src="${urlAPI}" alt="QR Code">`;
+                document.getElementById('print-titulo-caixa').innerText = nomeCaixa;
+                document.getElementById('print-qr-code-img').src = urlAPI;
+            },
+
+            // --- COMPRESSOR DE IMAGEM ---
+            processarImagem(arquivo) {
+                return new Promise((resolve, reject) => {
+                    if (!arquivo) resolve(null);
+                    const reader = new FileReader();
+                    reader.onload = (e_reader) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            const ctx = canvas.getContext('2d');
+                            const max_largura = app.config.MAX_FOTO_LARGURA;
+                            let largura = img.width, altura = img.height;
+                            if (largura > max_largura) {
+                                altura = (max_largura / largura) * altura;
+                                largura = max_largura;
+                            }
+                            canvas.width = largura; canvas.height = altura;
+                            ctx.drawImage(img, 0, 0, largura, altura);
+                            resolve(canvas.toDataURL('image/jpeg', 0.7));
+                        };
+                        img.onerror = reject; img.src = e_reader.target.result;
+                    };
+                    reader.onerror = reject; reader.readAsDataURL(arquivo);
+                });
+            },
+
+            // --- FUNÇÕES DE BACKUP ---
+            exportarBackup() {
+                if (!confirm('Deseja baixar um arquivo de backup com TODOS os dados (login e caixas)?')) return;
+                const dados = JSON.stringify(app.db);
+                const blob = new Blob([dados], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `backup_sga_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a); a.click();
+                document.body.removeChild(a); URL.revokeObjectURL(url);
+            },
+            iniciarImportacao() {
+                if (confirm('ATENÇÃO: Isso irá apagar TODOS os dados atuais. Deseja continuar?')) {
+                    document.getElementById('input-import').click();
+                }
+            },
+            importarBackup(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const dbImportada = JSON.parse(e.target.result);
+                        if (dbImportada.login && dbImportada.categorias) {
+                            app.db = dbImportada;
+                            app.salvarDB();
+                            alert('Backup importado com sucesso! O aplicativo será recarregado.');
+                            app.logout();
+                        } else {
+                            alert('Erro: O arquivo de backup parece ser inválido.');
+                        }
+                    } catch (err) { alert('Erro ao ler o arquivo de backup.'); }
+                };
+                reader.readAsText(file);
+                event.target.value = null;
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', app.init);
+    </script>
+
+</body>
+</html>
